@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trang chủ | CRM &amp; CONTRACT</title>
+  <link rel="shortcut icon" href="img/contract.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <!-- Shell CSS: sidebar + topbar + tokens + shared components (toast, buttons, panel).
+       Loaded once — never reloaded when the active view changes. -->
+  <link rel="stylesheet" href="css/shell.css" />
+</head>
+
+<body>
+
+  <!-- Toasts render here (shared component, always present regardless of view) -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="app-shell">
+
+    <!-- ===================== SIDEBAR (fixed — never re-rendered) ===================== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__brand">
+        <div class="sidebar__logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M6 2h9l5 5v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="#fff" stroke-width="1.6" />
+            <path d="M14 2v5h5" stroke="#fff" stroke-width="1.6" />
+            <circle cx="11" cy="14" r="2" stroke="#fff" stroke-width="1.6" />
+            <path d="M12.4 15.4 16 19" stroke="#fff" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="sidebar__brand-text">
+          <strong>CRM <span>&amp;</span> CONTRACT</strong>
+          <small>Hệ thống quản lý hợp đồng</small>
+        </div>
+      </div>
+
+      <!-- Mỗi mục menu có data-route trỏ tới 1 key trong app.js -> routes.
+           app.js đọc location.hash, gọi renderView(routeKey), rồi chỉ thay
+           nội dung #main-content — sidebar này không bị đụng tới. -->
+      <nav class="sidebar__nav">
+        <a href="#home" class="nav-item" data-route="home">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <path d="M4 11.2 12 4l8 7.2V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1v-7.8Z" stroke="currentColor"
+              stroke-width="1.7" stroke-linejoin="round" />
+          </svg>
+          <span class="label">Trang chủ</span>
+        </a>
+
+        <div class="nav-section-label">Tạo hợp đồng</div>
+        <a href="#contract/web" class="nav-item" data-route="contract/web">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <span class="label">Hợp đồng Web</span>
+        </a>
+        <a href="#contract/seo" class="nav-item" data-route="contract/seo">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <path d="M4 19 9 9l4 6 3-5 4 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+          <span class="label">Hợp đồng SEO</span>
+        </a>
+
+        <div class="nav-section-label">Cài đặt</div>
+        <a href="#settings" class="nav-item" data-route="settings">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" />
+            <path
+              d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"
+              stroke="currentColor" stroke-width="1.5" />
+          </svg>
+          <span class="label">Thông tin doanh nghiệp</span>
+        </a>
+        <a href="#profile" class="nav-item" data-route="profile">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.7" />
+            <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+          <span class="label">Thông tin cá nhân</span>
+        </a>
+        <a href="#" class="nav-item" id="logoutLink">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round" />
+            <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+          <span class="label">Đăng xuất</span>
+        </a>
+      </nav>
+
+      <div class="sidebar__footer">
+        <div class="upgrade-card">
+          <div class="upgrade-card__icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="1.7" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="1.7" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#fff" stroke-width="1.7" />
+              <path d="M14 17.5h7M17.5 14v7" stroke="#fff" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </div>
+          <h4>CRM quản lý tổng</h4>
+          <p>Truy cập hệ thống CRM tổng để quản lý toàn bộ dữ liệu và hợp đồng.</p>
+          <a href="https://tungit04315.github.io/crm/" class="upgrade-card__btn">&rarr; CRM</a>
+        </div>
+        <button class="collapse-btn" id="collapseBtn">
+          <svg class="collapse-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" />
+            <path d="m13.2 8.5-3.4 3.5 3.4 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+          <span class="label">Thu gọn</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN (topbar fixed, content dynamic) ===================== -->
+    <div class="main">
+
+      <!-- Topbar (fixed — app.js chỉ update .topbar__title / user-chip, không render lại) -->
+      <header class="topbar">
+        <button class="topbar__menu-btn" id="menuBtn" aria-label="Mở menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <h1 class="topbar__title">Trang chủ</h1>
+
+        <label class="searchbar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input type="text" placeholder="Tìm kiếm hợp đồng, khách hàng...">
+          <kbd>Ctrl + K</kbd>
+        </label>
+
+        <div class="topbar__right">
+          <button class="icon-btn" aria-label="Thông báo">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" stroke="currentColor" stroke-width="1.7"
+                stroke-linejoin="round" />
+              <path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+            <span class="icon-btn__badge">3</span>
+          </button>
+          <div class="user-chip">
+            <img class="user-chip__avatar" src="https://i.pravatar.cc/80?img=13" alt="">
+            <div>
+              <div class="user-chip__name">—</div>
+              <div class="user-chip__role">—</div>
+            </div>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </div>
+        </div>
+      </header>
+
+      <!-- ===================== VÙNG ĐỘNG DUY NHẤT ===================== -->
+      <main class="content" id="main-content">
+        <div class="view-loading">Đang tải...</div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,41 @@
+/* ==========================================================================
+   PLACEHOLDER.CSS — Dùng chung cho các view đơn giản, chưa có UI phức tạp
+   (Thông tin cá nhân, Hợp đồng Web, Hợp đồng SEO...).
+   ========================================================================== */
+
+.placeholder-panel {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 48px 32px;
+  text-align: center;
+  max-width: 560px;
+  margin: 40px auto;
+}
+
+.placeholder-panel__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--blue-50);
+  color: var(--blue-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+
+.placeholder-panel h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink-900);
+}
+
+.placeholder-panel p {
+  margin: 0;
+  font-size: 13.8px;
+  color: var(--ink-500);
+  line-height: 1.6;
+}
