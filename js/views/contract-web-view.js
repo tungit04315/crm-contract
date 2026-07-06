@@ -14,6 +14,7 @@
 import { getBusinessInfo } from "../services/settings-service.js";
 import { buildContractNumber, saveContract } from "../services/contract-service.js";
 import { generateContractDocx, downloadBlob } from "../services/docx-generator.js";
+import { generateContractPdf } from "../services/pdf-generator.js";
 import { soTienBangChu } from "../utils/number-to-words.js";
 import { toInputDateValue, toVietnameseLongDate, toShortDate, parseInputDate } from "../utils/date-utils.js";
 import { createFormWizard } from "../components/form-wizard.js";
@@ -82,7 +83,11 @@ export async function render(container) {
     onFinish: () => handleFinish(root, state, wizard),
   });
 
-  root.querySelector("#btnExportDocx")?.addEventListener("click", () => handleFinish(root, state, wizard));
+  // "Tải file Word (.docx)": xuất thêm bản Word phụ, KHÔNG lưu vào Firestore
+  // (việc lưu chỉ gắn với hành động "Hoàn tất & Xuất file" ở thanh điều hướng
+  // dưới cùng, tránh trường hợp bấm nhiều nút gây lưu trùng / gây nhầm lẫn).
+  root.querySelector("#btnExportDocx")?.addEventListener("click", () => exportDocx(root, state));
+  // "In / Lưu PDF": mở hộp thoại in của trình duyệt để người dùng tự lưu PDF thủ công.
   root.querySelector("#btnExportPdf")?.addEventListener("click", () => exportPdfViaPrint(root, state));
 
   return () => { };
@@ -485,7 +490,13 @@ function collectFormData(state) {
 }
 
 async function handleFinish(root, state, wizard) {
-  await exportDocx(root, state);
+  try {
+    await exportPdf(root, state);
+  } catch {
+    // Đã báo lỗi bên trong exportPdf(); dừng lại, KHÔNG lưu Firestore
+    // nếu file chưa xuất được, tránh tạo bản ghi "đã hoàn tất" ảo.
+    return;
+  }
   await persistContract(state, wizard);
 }
 
@@ -515,6 +526,28 @@ async function exportDocx(root, state) {
   } catch (err) {
     console.error("Lỗi xuất file Word:", err);
     showToast("Không thể tạo file Word. Vui lòng thử lại.", "error");
+    throw err;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+/**
+ * Xuất file PDF THẬT (khác với exportPdfViaPrint — hộp thoại in của trình duyệt).
+ * Gắn với nút "Hoàn tất & Xuất file" ở thanh điều hướng dưới cùng của wizard.
+ */
+async function exportPdf(root, state) {
+  const btn = root.querySelector("[data-wizard-next]");
+  const originalLabel = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "Đang tạo file PDF..."; }
+  try {
+    const blob = await generateContractPdf(collectFormData(state));
+    downloadBlob(blob, `${state.contractNumber.replace(/[\\/:*?"<>|]/g, "-")}.pdf`);
+    showToast("Đã tạo file PDF thành công!", "success");
+  } catch (err) {
+    console.error("Lỗi xuất file PDF:", err);
+    showToast("Không thể tạo file PDF. Vui lòng thử lại.", "error");
+    throw err;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
   }
