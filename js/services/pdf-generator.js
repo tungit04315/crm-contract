@@ -1,0 +1,256 @@
+// ==========================================================================
+// PDF-GENERATOR.JS — Xuất hợp đồng ra file .pdf THẬT ngay trên trình duyệt
+// (khác với "In / Lưu PDF" qua window.print() — hàm này tạo trực tiếp file
+// PDF nhị phân và tải về, không cần thao tác tay ở hộp thoại in).
+//
+// Dùng thư viện "pdfmake" (chạy được trong browser) qua CDN ESM — cùng
+// phong cách với docx-generator.js (import "docx" qua esm.sh).
+//
+// LƯU Ý QUAN TRỌNG (đọc trước khi dùng):
+//   - pdfmake cần nạp "vfs" (bộ font nhúng sẵn) trước khi gọi createPdf().
+//     Bản build mặc định của pdfmake nhúng sẵn font Roboto — Roboto có đầy đủ
+//     bộ dấu tiếng Việt nên KHÔNG cần nhúng font riêng.
+//   - Cách các CDN "biến" package CommonJS (như pdfmake) thành ESM có thể
+//     khác nhau tùy thời điểm, nên đoạn nạp `vfs` bên dưới có kiểm tra nhiều
+//     dạng export để tránh vỡ khi esm.sh đổi cách wrap. Nếu sau này thấy lỗi
+//     "Font 'Roboto' not found" hoặc PDF ra chữ vuông (tofu) thay vì tiếng
+//     Việt có dấu, mở Console kiểm tra `pdfFontsModule` để xem đúng field nào
+//     chứa vfs, rồi cập nhật lại đoạn gán `vfs` bên dưới cho khớp.
+//
+// Cách dùng (trong view):
+//   import { generateContractPdf } from "../services/pdf-generator.js";
+//   const blob = await generateContractPdf(formData);
+//   downloadBlob(blob, `${formData.contractNumber}.pdf`);
+// ==========================================================================
+
+import pdfMakeModule from "https://esm.sh/pdfmake@0.2.10/build/pdfmake.js";
+import pdfFontsModule from "https://esm.sh/pdfmake@0.2.10/build/vfs_fonts.js";
+import { toVietnameseLongDate, toShortDate, addDays } from "../utils/date-utils.js";
+import { soTienBangChu } from "../utils/number-to-words.js";
+
+// pdfMake đôi khi được esm.sh trả về dạng { default } thay vì trực tiếp.
+const pdfMake = pdfMakeModule?.default ?? pdfMakeModule;
+
+// Thử lần lượt các dạng export phổ biến của vfs_fonts.js để tìm đúng bộ vfs.
+const vfs =
+  pdfFontsModule?.default?.pdfMake?.vfs ??
+  pdfFontsModule?.pdfMake?.vfs ??
+  pdfFontsModule?.default?.vfs ??
+  pdfFontsModule?.vfs;
+
+if (vfs) {
+  pdfMake.vfs = vfs;
+} else {
+  console.warn(
+    "[pdf-generator] Không tìm thấy vfs (bộ font) của pdfmake. " +
+    "File PDF có thể không tạo được hoặc thiếu font. Xem ghi chú ở đầu file pdf-generator.js."
+  );
+}
+
+function formatVnd(n) {
+  return Math.round(n).toLocaleString("vi-VN");
+}
+
+// ---------- Helper dựng nội dung theo định dạng của pdfmake ----------
+function para(text, opts = {}) {
+  const { bold, italic, align, marginTop = 0, marginBottom = 6 } = opts;
+  return { text, bold, italics: italic, alignment: align, margin: [0, marginTop, 0, marginBottom] };
+}
+
+function heading(text) {
+  return { text, bold: true, margin: [0, 14, 0, 6] };
+}
+
+function subheading(text) {
+  return { text, bold: true, margin: [0, 4, 0, 4] };
+}
+
+function itemNumber(n, text) {
+  return { text: [{ text: `${n}. ` }, { text }], margin: [10, 0, 0, 5] };
+}
+
+function itemLetter(letter, text) {
+  return { text: [{ text: `${letter}. ` }, { text }], margin: [18, 0, 0, 5] };
+}
+
+/**
+ * @param {object} data - dữ liệu tổng hợp từ 4 bước của form (giống docx-generator.js)
+ * @returns {Promise<Blob>} file .pdf sẵn sàng tải xuống
+ */
+export function generateContractPdf(data) {
+  const {
+    contractNumber,
+    signDate,
+    partyA,
+    partyB,
+    content,
+  } = data;
+
+  const vatAmount = Math.round((content.contractValue * content.vatPercent) / (100 + content.vatPercent));
+  const dot1 = Math.round(content.contractValue / 2);
+  const dot2 = content.contractValue - dot1;
+  const liquidationDate = content.liquidationDate || addDays(signDate, 30);
+  const effectiveDate = content.effectiveDate || signDate;
+
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [71, 57, 57, 57], // ~ giống lề docx-generator.js (2.5cm/2cm/2cm/2cm)
+    defaultStyle: { font: "Roboto", fontSize: 11, lineHeight: 1.15 },
+    content: [
+      para("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", { bold: true, align: "center", marginBottom: 2 }),
+      para("Độc lập - Tự do - Hạnh phúc", { italic: true, align: "center", marginBottom: 2 }),
+      para("---o0o---", { align: "center", marginBottom: 14 }),
+
+      { text: "HỢP ĐỒNG DỊCH VỤ THIẾT KẾ WEBSITE", bold: true, fontSize: 13, alignment: "center", margin: [0, 0, 0, 2] },
+      para(`(Số: ${contractNumber})`, { italic: true, align: "center", marginBottom: 14 }),
+
+      para("Căn cứ Bộ luật Dân sự số 91/2015/QH13 do Quốc hội Nước CHXHCN Việt Nam thông qua ngày 24/11/2015;", { italic: true }),
+      para("Căn cứ Luật thương mại số 36/2005/QH11 do Quốc hội Nước CHXHCN Việt Nam thông qua ngày 14/06/2005;", { italic: true }),
+      para("Căn cứ vào nhu cầu và khả năng của hai Bên.", { italic: true, marginBottom: 14 }),
+
+      para(`${toVietnameseLongDate(signDate)}, chúng tôi gồm có:`, { marginBottom: 14 }),
+
+      // ---------------- BÊN A ----------------
+      heading(`BÊN A: ${partyA.companyName.toUpperCase()}`),
+      para(`Mã số thuế: ${partyA.taxCode}`),
+      para(`Người đại diện: ${partyA.representativeTitle} ${partyA.representativeName.toUpperCase()}`),
+      para(`Chức vụ: ${partyA.representativePosition}`),
+      para(`Địa chỉ: ${partyA.address}`),
+      para(`Số điện thoại: ${partyA.phone}`),
+      para(`Email: ${partyA.email}`, { marginBottom: 14 }),
+
+      // ---------------- BÊN B ----------------
+      heading(`BÊN B: ${partyB.companyName.toUpperCase()}`),
+      para(`Địa chỉ: ${partyB.address}`),
+      para(`Mã số thuế: ${partyB.taxCode}`),
+      para(`Số tài khoản: ${partyB.bankAccount}  Ngân hàng: ${partyB.bankName}`),
+      para(`Số điện thoại: ${partyB.hotline}  Email: ${partyB.email}`),
+      para(`Người đại diện: ${partyB.representativeTitle} ${partyB.representativeName.toUpperCase()}`),
+      para(`Chức vụ: ${partyB.representativePosition}`, { marginBottom: 6 }),
+      para('Sau khi trao đổi, hai Bên thống nhất ký kết Hợp đồng Thiết kế Website (sau đây gọi tắt là "Hợp đồng") với các điều khoản sau đây:', { italic: true, marginBottom: 14 }),
+
+      // ---------------- ĐIỀU 1 ----------------
+      heading("ĐIỀU 1. PHẠM VI HỢP ĐỒNG"),
+      itemNumber(1, 'Bên B cung cấp dịch vụ Thiết kế Website theo yêu cầu của Bên A. Chi tiết về cấu trúc, bố cục (sau đây gọi tắt là "Giao diện") và chức năng của website được hai Bên trao đổi, thống nhất theo thỏa thuận trước khi tiến hành dịch vụ.'),
+      itemNumber(2, "Bên B hỗ trợ các dịch vụ đi kèm như sau:"),
+      itemLetter("a", `Cung cấp tên miền và hosting để phục vụ cho phạm vi công việc thiết kế website quy định tại Điều 1.1 Hợp đồng này, cụ thể: Tên miền: ${content.domainNote}; Hosting: ${content.hostingNote}.`),
+      itemLetter("b", `Nội dung khác: ${content.extraServicesNote}`),
+      itemNumber(3, "Trong quá trình triển khai, việc chỉnh sửa chỉ được thực hiện nếu trước đó hai Bên có thoả thuận. Phạm vi và thời gian chỉnh sửa do các Bên thỏa thuận tuy nhiên không được thay đổi layout đã thống nhất từ ban đầu."),
+      itemNumber(4, "Trường hợp chỉnh sửa những vấn đề không nằm trong thoả thuận ban đầu, thì tùy thuộc vào nội dung yêu cầu chỉnh sửa, hai Bên sẽ thống nhất lại về giá cả, phương thức thực hiện trước khi tiến hành và lập biên bản mới với nội dung như đã thỏa thuận. Biên bản này có thể được coi là một Hợp đồng mới giữa hai Bên."),
+
+      // ---------------- ĐIỀU 2 ----------------
+      heading("ĐIỀU 2: THỜI GIAN THỰC HIỆN"),
+      itemNumber(1, `Thời gian thực hiện: Trong vòng ${content.demoDays} ngày làm việc kể từ khi Bên B nhận đủ thông tin, hình ảnh và Bên A hoàn thành thanh toán đợt 1 theo quy định tại Điều 3.2 Hợp đồng, Bên B sẽ bàn giao bản thiết kế thử nghiệm Website (gọi tắt là "bản thiết kế demo") để Bên A kiểm tra giao diện, hiệu ứng và cách vận hành. Thời gian thực hiện có thể thay đổi phụ thuộc vào tính chất công việc, những vấn đề phát sinh thêm trong quá trình thực hiện và sẽ do hai bên thỏa thuận. Ngày làm việc không bao gồm Thứ 7, Chủ nhật và các ngày nghỉ lễ tết theo quy định. Thời gian thực hiện không bao gồm thời gian Bên A duyệt layout nếu có. Thời gian chỉnh sửa (nếu có): Do các Bên thỏa thuận.`),
+      itemNumber(2, `Thời gian nghiệm thu: Bên B sẽ hoàn chỉnh và tiến hành nghiệm thu Website trong vòng ${content.acceptanceDays} (bằng số) ngày làm việc kể từ khi các Bên A duyệt bản thiết kế demo.`),
+      itemNumber(3, "Sau khi thống nhất được bản thiết kế giao diện website mẫu với Bên A, Bên B không có trách nhiệm thay đổi bất cứ hạng mục thiết kế nào so với bản giao diện website mẫu ban đầu."),
+      itemNumber(4, "Mọi thay đổi so với bản giao diện website mẫu sẽ được hai bên bàn bạc, thống nhất. Tùy theo từng trường hợp mà những thay đổi sẽ lập thành phụ lục đính kèm theo bản Hợp đồng này hay sẽ được thành lập bản Hợp đồng mới, trong trường hợp đó, bản Hợp đồng này cũng như tất cả các bản sao của nó đều không còn giá trị."),
+
+      // ---------------- ĐIỀU 3 ----------------
+      heading("ĐIỀU 3: GIÁ TRỊ HỢP ĐỒNG & PHƯƠNG THỨC THANH TOÁN"),
+      subheading("3.1. Giá trị hợp đồng:"),
+      para(`Giá trị Hợp đồng là: ${formatVnd(content.contractValue)} VNĐ. (VAT ${formatVnd(vatAmount)})`),
+      para(`(Bằng chữ: ${soTienBangChu(content.contractValue)}).`, { italic: true }),
+      para(`Giá trị hợp đồng đã bao gồm ${content.vatPercent}% thuế Giá trị gia tăng (VAT) và các chi phí phát sinh khi chỉnh sửa (nếu có).`, { marginBottom: 10 }),
+      subheading("3.2. Phương thức thanh toán:"),
+      para("Bên A thanh toán cho Bên B Tổng giá trị Hợp đồng theo quy định tại Điều 3.1 Hợp đồng thành 02 đợt như sau:"),
+      itemLetter("a", `Đợt 1: thanh toán ${formatVnd(dot1)} VNĐ ngay sau khi các bên ký Hợp đồng này.`),
+      itemLetter("b", `Đợt 2: thanh toán ${formatVnd(dot2)} VNĐ sau khi nghiệm thu dịch vụ.`),
+      subheading("3.3. Hình thức thanh toán"),
+      para("Bên A thanh toán cho Bên B bằng tiền mặt hoặc chuyển khoản vào tài khoản của bên B.", { marginBottom: 14 }),
+
+      // ---------------- ĐIỀU 4 ----------------
+      heading("ĐIỀU 4: QUYỀN VÀ NGHĨA VỤ CỦA CÁC BÊN"),
+      subheading("4.1. Quyền và nghĩa vụ của bên A:"),
+      itemLetter("a", "Có quyền khiếu nại về chất lượng thông tin, chất lượng dịch vụ do Bên B cung cấp. Mọi khiếu nại phải được gửi cho Bên B dưới dạng văn bản trong vòng 03 (ba) ngày kể từ ngày phát sinh vấn đề và Bên B trả lời khiếu nại cho Bên A trong vòng 03 (ba) ngày kể từ ngày Bên B nhận được công văn của Bên A."),
+      itemLetter("b", "Bên A có quyền yêu cầu Bên B hoàn trả 100% phí tạm ứng nếu sau thời hạn quy định tại Điều 2 mà Bên B vẫn chưa hoàn thành nghĩa vụ cung cấp dịch vụ."),
+      itemLetter("c", "Cung cấp cho Bên B đầy đủ, kịp thời các tài liệu, dữ liệu cần thiết phục vụ cho việc thực hiện Hợp đồng."),
+      itemLetter("d", "Thanh toán phí dịch vụ theo đúng thời gian đã thỏa thuận. Trường hợp thanh toán chậm thì phải chịu trách nhiệm trả lãi theo quy định tại điều 9.2 của Hợp đồng."),
+      itemLetter("e", "Bên A có trách nhiệm tự cập nhật nội dung website sau khi nhận được Website đã được hoàn thiện về giao diện từ Bên B và tự chịu trách nhiệm trước pháp luật về các nội dung (thông tin, hình ảnh, bài viết,...) mà Bên A đăng tải lên website."),
+      itemLetter("f", "Không được tự ý sửa chữa cấu trúc, định dạng của website. Nếu tự ý sửa dẫn đến phát sinh lỗi thì Bên B không chịu trách nhiệm."),
+      itemLetter("g", "Liên hệ Bên B để đóng phí gia hạn nếu Bên A sử dụng hosting và tên miền của Bên B cung cấp. Phí dịch vụ sẽ được quy định tại thời điểm gia hạn."),
+      itemLetter("h", "Bên A có nghĩa vụ thực hiện đúng các quy định sử dụng dịch vụ được đăng tải cụ thể tại địa chỉ website của bên B."),
+      subheading("4.2. Quyền và nghĩa vụ của bên B"),
+      itemLetter("i", "Bên B có nghĩa vụ cung cấp dịch vụ cho Bên A theo đúng nội dung trên hợp đồng."),
+      itemLetter("j", "Bên B có nghĩa vụ đăng ký tên miền, khởi tạo hosting để chạy dữ liệu website trong vòng 3 ngày làm việc kể từ ngày ký hợp đồng nếu là dịch vụ miễn phí do bên B cung cấp."),
+      itemLetter("k", "Yêu cầu bên A thanh toán chi phí theo thỏa thuận trong hợp đồng và bồi thường các thiệt hại thực tế xảy ra cho bên B nếu bên A chấm dứt hợp đồng trái pháp luật."),
+      itemLetter("l", "Thông báo cho bên A tiến độ thực hiện hợp đồng. Nếu có vấn đề gì bất lợi phát sinh, bên B phải kịp thời thông báo cho bên A để cùng nhau bàn bạc, giải quyết."),
+      itemLetter("m", "Trong quá trình triển khai, Bên B có quyền thay người thực hiện dự án nhưng phải bảo đảm không làm ảnh hưởng đến tiến độ thực hiện dịch vụ."),
+      itemLetter("n", "Hỗ trợ bảo hành Website cho Bên A theo đúng thỏa thuận đã nêu trong hợp đồng."),
+      itemLetter("o", "Được toàn quyền xử lý tài khoản quản trị Website trong trường hợp nêu tại điểm b Điều 6.1 Hợp đồng."),
+      itemLetter("p", "Bên B có quyền đơn phương chấm dứt hợp đồng, ngừng cung cấp dịch vụ và yêu cầu bồi thường thiệt hại nếu Bên A không thực hiện đúng các nội dung, điều khoản quy định trên hợp đồng này."),
+
+      // ---------------- ĐIỀU 5 ----------------
+      heading("ĐIỀU 5: NGHIỆM THU"),
+      itemNumber(1, "Hai bên tiến hành nghiệm thu và lập Biên bản nghiệm thu Website khi Bên B đã thiết kế xong Website đúng như thỏa thuận được thống nhất giữa hai Bên."),
+      itemNumber(2, "Sau khi nghiệm thu, trường hợp Bên A có yêu cầu phát sinh hoặc chỉnh sửa nào ngoài phạm vi bảo hành đã được hai bên thỏa thuận trước, hai Bên sẽ cùng thỏa thuận về thời gian và chi phí thực hiện."),
+
+      // ---------------- ĐIỀU 6 ----------------
+      heading("ĐIỀU 6: HƯỚNG DẪN SỬ DỤNG VÀ BÀN GIAO"),
+      itemNumber(1, "Bên B hướng dẫn cách thức sử dụng và quản trị website cho bên A."),
+      itemNumber(2, "Bên B bàn giao đầy đủ code và tài khoản quản trị admin cho bên A."),
+      itemNumber(3, "Trường hợp Bên A sử dụng hosting và tên miền do Bên B cung cấp miễn phí, Bên B sẽ quản lý tài khoản quản trị trong 1 (một) năm đầu kể từ ngày nghiệm thu. Sau 1 (một) năm:"),
+      itemLetter("a", "Nếu Bên A gia hạn sử dụng hosting và tên miền: Bên B hỗ trợ thủ tục gia hạn (chi phí Bên A chịu được tính tại thời điểm gia hạn) và sẽ bàn giao tài khoản quản trị cho Bên A."),
+      itemLetter("b", "Nếu Bên A không gia hạn sử dụng hosting và tên miền: bên B sẽ không bàn giao tài khoản quản trị."),
+      itemNumber(4, "Trong năm đầu sử dụng dịch vụ tên miền và hosting miễn phí, nếu bên A yêu cầu cung cấp tài khoản quản trị để tự quản lí, thì sẽ đóng một khoản phí theo quy định của bên B để được cung cấp."),
+
+      // ---------------- ĐIỀU 7 ----------------
+      heading("ĐIỀU 7: BẢO HÀNH VÀ BẢO TRÌ"),
+      itemNumber(1, "Bảo hành vĩnh viễn nếu Bên A sử dụng dịch vụ website và hosting của Bên B."),
+      itemNumber(2, "Bên B chỉ bảo hành soucode trong thời hạn 12 tháng kể từ ngày ký biên bản nghiệm thu trong trường hợp:"),
+      itemLetter("a", "Bên A sử dụng hosting, tên miền không phải do Bên B cung cấp."),
+      itemLetter("b", "Bên A yêu cầu cung cấp tài khoản quản trị hosting và tên miền."),
+      itemLetter("c", "Bên A tự ý sửa chữa hoặc xóa bỏ dòng bản quyền thiết kế của Bên B."),
+      itemNumber(3, "Bên B sẽ hỗ trợ bảo hành, bảo trì cho Bên A các vấn đề liên quan tới lỗi vận hành, backup dữ liệu nếu có phát sinh về yêu cầu. Chi phí sẽ phụ thuộc từng trường hợp cụ thể và sự thỏa thuận giữa các Bên."),
+      itemNumber(4, "Bên B không có nghĩa vụ bảo hành khi Bên A can thiệp vào tài khoản hosting và mã nguồn website do Bên B cài đặt ban đầu hoặc/và Bên A nhờ sự can thiệp của đơn vị quản lý website khác chỉnh sửa website mà bên B thiết kế."),
+      itemNumber(5, `Các vấn đề liên quan đến hỗ trợ kỹ thuật (bảo hành, bảo trì, nâng cấp, chỉnh sửa,...) Bên A cần sử dụng email đăng ký trên hợp đồng để gửi yêu cầu cho phòng kỹ thuật của Bên B qua địa chỉ email: ${partyB.email}.`),
+
+      // ---------------- ĐIỀU 8 ----------------
+      heading("ĐIỀU 8: CHẤM DỨT HỢP ĐỒNG"),
+      itemNumber(1, `Hợp đồng được thanh lý sau khi hai Bên đã hoàn thành các nghĩa vụ quy định trong Hợp đồng mà không có bất kỳ khiếu nại, khiếu kiện nào trong vòng 07 ngày kể từ ngày hoàn thành nghĩa vụ. Thời hạn thanh lý Hợp đồng chậm nhất là ngày ${toShortDate(liquidationDate)}.`),
+      itemNumber(2, "Bên A được quyền đơn phương chấm dứt hợp đồng nhưng không được nhận lại số tiền đã thanh toán cho Bên B."),
+      itemNumber(3, "Bên B có quyền chấm dứt hợp đồng khi Bên A vi phạm nội dung của hợp đồng này dẫn đến quá trình triển khai không đúng như thoả thuận. Trong trường hợp này, phí dịch vụ sẽ được tính trên chi phí thực tế mà bên B đã thực hiện."),
+      itemNumber(4, "Trong trường hợp Hợp đồng không được thực hiện do các tác nhân bất khả kháng theo luật định, thì Bên bị ảnh hưởng bởi các tác nhân này phải thông báo ngay cho Bên kia bằng văn bản trong vòng 48 giờ kể từ ngày xảy ra tác nhân bất khả kháng. Thông báo này phải nêu rõ bản chất, thời gian ảnh hưởng của các tác nhân này và cách khắc phục (nếu có). Trường hợp bên bị ảnh hưởng bởi các tác nhân bất khả kháng không thể khắc phục hậu quả trong thời hạn 01 tháng thì mỗi Bên có quyền chấm dứt hợp đồng bằng văn bản gởi cho Bên kia trước 01 tuần. Quyền và nghĩa vụ của các Bên sẽ được giải quyết theo luật định tại thời điểm chấm dứt hợp đồng."),
+
+      // ---------------- ĐIỀU 9 ----------------
+      heading("ĐIỀU 9: BỒI THƯỜNG THIỆT HẠI VÀ PHẠT VI PHẠM HỢP ĐỒNG"),
+      itemNumber(1, "Nếu một trong hai Bên vi phạm Hợp đồng mà không chấm dứt hành vi vi phạm dù đã được Bên còn lại nhắc nhở bằng văn bản hoặc thư điện tử nhưng không được giải quyết trong thời gian 5 ngày thì Bên vi phạm có trách nhiệm:"),
+      itemLetter("a", "Hoàn trả 100% số tiền đã nhận nếu Bên vi phạm là Bên B hoặc thanh toán toàn bộ giá trị Hợp đồng còn lại nếu Bên vi phạm là Bên A."),
+      itemLetter("b", "Bồi thường thiệt hại thực tế mà Bên bị vi phạm phải gánh chịu do sự vi phạm Hợp đồng của Bên còn lại. Mức bồi thường tối đa 100% giá trị hợp đồng."),
+      itemNumber(2, "Trong trường hợp Bên A chậm thanh toán thì, ngoài số tiền phải thanh toán, Bên A sẽ thanh toán cho Bên B số tiền phạt chậm thanh toán với lãi suất chậm thanh toán bằng 0,05% tổng giá trị mà Bên A thanh toán trễ cho mỗi ngày thanh toán chậm."),
+
+      // ---------------- ĐIỀU 10 ----------------
+      heading("ĐIỀU 10: ĐIỀU KHOẢN CHUNG"),
+      itemNumber(1, `Hợp đồng có hiệu lực kể từ ngày ${toShortDate(effectiveDate)}.`),
+      itemNumber(2, "Mọi sửa đổi, bổ sung (nếu có) liên quan đến hợp đồng này chỉ có giá trị pháp lý khi được sự thỏa thuận của các bên và lập thành biên bản có chữ ký của các bên xác nhận."),
+      itemNumber(3, "Hai bên cam kết thực hiện các điều khoản đã ghi trong hợp đồng. Trong trường hợp có tranh chấp, các Bên cùng nhau bàn bạc giải quyết. Trong trường hợp không thể giải quyết được thông qua thương lượng, các Bên có quyền yêu cầu Tòa Án có thẩm quyền giải quyết theo quy định của pháp luật."),
+      itemNumber(4, "Hợp đồng này được lập thành 02 (hai) bản có giá trị pháp lý như nhau. Mỗi Bên giữ 01 (một) bản để làm căn cứ thực hiện."),
+
+      // ---------------- CHỮ KÝ ----------------
+      {
+        margin: [0, 24, 0, 0],
+        table: {
+          widths: ["*", "*"],
+          body: [
+            [
+              { text: "ĐẠI DIỆN BÊN A", bold: true, alignment: "center", margin: [0, 0, 0, 40] },
+              { text: "ĐẠI DIỆN BÊN B", bold: true, alignment: "center", margin: [0, 0, 0, 40] },
+            ],
+            [
+              { text: partyA.representativeName.toUpperCase(), bold: true, alignment: "center" },
+              { text: partyB.representativeName.toUpperCase(), bold: true, alignment: "center" },
+            ],
+          ],
+        },
+        layout: "noBorders",
+      },
+    ],
+  };
+
+  return new Promise((resolve, reject) => {
+    try {
+      pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
