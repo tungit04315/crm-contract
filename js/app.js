@@ -33,8 +33,8 @@ const routes = {
     load: () => import("./views/contract-web-view.js"),
   },
   "contract/seo": {
-    title: "Hợp đồng SEO",
-    css: "css/views/placeholder.css",
+    title: "Tạo hợp đồng SEO",
+    css: "css/views/contract-form.css",
     load: () => import("./views/contract-seo-view.js"),
   },
   "profile": {
