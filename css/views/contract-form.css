@@ -207,6 +207,203 @@
   border-top: 1px solid var(--border);
 }
 
+/* ---------- Bước "Tính năng Website" ---------- */
+.feature-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.feature-head h3 {
+  margin: 0 0 4px;
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--ink-900);
+}
+
+.feature-count {
+  flex-shrink: 0;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease);
+  user-select: none;
+}
+
+.feature-card input {
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue-600);
+}
+
+.feature-card:hover {
+  border-color: var(--blue-400);
+}
+
+.feature-card.is-checked {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+  color: var(--ink-900);
+}
+
+.feature-custom-add {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.feature-custom-add input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+}
+
+.feature-custom-add input:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+
+.feature-order__label {
+  margin: 0 0 10px;
+  font-size: 12.8px;
+  font-weight: 700;
+  color: var(--ink-700);
+}
+
+.feature-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feature-order-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  cursor: grab;
+  transition: border-color .15s var(--ease), background .15s var(--ease);
+}
+
+.feature-order-item.is-dragging {
+  opacity: .5;
+}
+
+.feature-order-item.is-drag-over {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+}
+
+.feature-order-item__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.feature-order-item__handle {
+  color: var(--ink-400);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.feature-order-item__index {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.feature-order-item__remove {
+  border: none;
+  background: none;
+  color: var(--ink-400);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+}
+
+.feature-order-item__remove:hover {
+  color: var(--red-500);
+}
+
+.feature-order-item__desc {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.8px;
+  font-family: inherit;
+  color: var(--ink-700);
+  resize: vertical;
+  outline: none;
+}
+
+.feature-order-item__desc:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+
+/* ---------- Bảng tính năng trong Preview ---------- */
+.preview-feature-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0 18px;
+  font-size: 13px;
+}
+
+.preview-feature-table th,
+.preview-feature-table td {
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+  color: var(--ink-700);
+}
+
+.preview-feature-table th {
+  background: var(--surface);
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.preview-feature-table td:first-child,
+.preview-feature-table th:first-child {
+  width: 46px;
+  text-align: center;
+}
+
 /* ---------- Preview (bước cuối) ---------- */
 .contract-preview {
   background: var(--surface);
@@ -267,7 +464,8 @@
 
 @media (max-width: 720px) {
   .form-grid,
-  .preview-grid {
+  .preview-grid,
+  .feature-grid {
     grid-template-columns: 1fr;
   }
 }
