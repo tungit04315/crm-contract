@@ -73,6 +73,39 @@ function itemLetter(letter, text) {
   return { text: [{ text: `${letter}. ` }, { text }], margin: [18, 0, 0, 5] };
 }
 
+// ---------- Bảng "Danh mục tính năng website" (STT / Tên tính năng / Mô tả) ----------
+function featureTable(features) {
+  return {
+    margin: [10, 2, 0, 10],
+    table: {
+      headerRows: 1,
+      widths: [28, 110, "*"],
+      body: [
+        [
+          { text: "STT", bold: true, fillColor: "#EFEFEF" },
+          { text: "Tên tính năng", bold: true, fillColor: "#EFEFEF" },
+          { text: "Mô tả", bold: true, fillColor: "#EFEFEF" },
+        ],
+        ...features.map((f, i) => [
+          { text: String(i + 1) },
+          { text: f.name },
+          { text: f.description || "" },
+        ]),
+      ],
+    },
+    layout: {
+      hLineColor: () => "#999999",
+      vLineColor: () => "#999999",
+      hLineWidth: () => 0.6,
+      vLineWidth: () => 0.6,
+      paddingLeft: () => 6,
+      paddingRight: () => 6,
+      paddingTop: () => 4,
+      paddingBottom: () => 4,
+    },
+  };
+}
+
 /**
  * @param {object} data - dữ liệu tổng hợp từ 4 bước của form (giống docx-generator.js)
  * @returns {Promise<Blob>} file .pdf sẵn sàng tải xuống
@@ -84,6 +117,7 @@ export function generateContractPdf(data) {
     partyA,
     partyB,
     content,
+    features = [],
   } = data;
 
   const vatAmount = Math.round((content.contractValue * content.vatPercent) / (100 + content.vatPercent));
@@ -135,8 +169,12 @@ export function generateContractPdf(data) {
       itemNumber(2, "Bên B hỗ trợ các dịch vụ đi kèm như sau:"),
       itemLetter("a", `Cung cấp tên miền và hosting để phục vụ cho phạm vi công việc thiết kế website quy định tại Điều 1.1 Hợp đồng này, cụ thể: Tên miền: ${content.domainNote}; Hosting: ${content.hostingNote}.`),
       itemLetter("b", `Nội dung khác: ${content.extraServicesNote}`),
-      itemNumber(3, "Trong quá trình triển khai, việc chỉnh sửa chỉ được thực hiện nếu trước đó hai Bên có thoả thuận. Phạm vi và thời gian chỉnh sửa do các Bên thỏa thuận tuy nhiên không được thay đổi layout đã thống nhất từ ban đầu."),
-      itemNumber(4, "Trường hợp chỉnh sửa những vấn đề không nằm trong thoả thuận ban đầu, thì tùy thuộc vào nội dung yêu cầu chỉnh sửa, hai Bên sẽ thống nhất lại về giá cả, phương thức thực hiện trước khi tiến hành và lập biên bản mới với nội dung như đã thỏa thuận. Biên bản này có thể được coi là một Hợp đồng mới giữa hai Bên."),
+      ...(features.length ? [
+        itemNumber(3, "Danh mục tính năng website chi tiết như sau:"),
+        featureTable(features),
+      ] : []),
+      itemNumber(features.length ? 4 : 3, "Trong quá trình triển khai, việc chỉnh sửa chỉ được thực hiện nếu trước đó hai Bên có thoả thuận. Phạm vi và thời gian chỉnh sửa do các Bên thỏa thuận tuy nhiên không được thay đổi layout đã thống nhất từ ban đầu."),
+      itemNumber(features.length ? 5 : 4, "Trường hợp chỉnh sửa những vấn đề không nằm trong thoả thuận ban đầu, thì tùy thuộc vào nội dung yêu cầu chỉnh sửa, hai Bên sẽ thống nhất lại về giá cả, phương thức thực hiện trước khi tiến hành và lập biên bản mới với nội dung như đã thỏa thuận. Biên bản này có thể được coi là một Hợp đồng mới giữa hai Bên."),
 
       // ---------------- ĐIỀU 2 ----------------
       heading("ĐIỀU 2: THỜI GIAN THỰC HIỆN"),
