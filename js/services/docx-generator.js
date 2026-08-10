@@ -15,7 +15,7 @@
 
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
-  Table, TableRow, TableCell, WidthType, BorderStyle,
+  Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType,
 } from "https://esm.sh/docx@8.5.0";
 import { toVietnameseLongDate, toShortDate, addDays } from "../utils/date-utils.js";
 import { soTienBangChu } from "../utils/number-to-words.js";
@@ -54,6 +54,50 @@ function itemNumber(n, text) {
   return p([run(`${n}. `), run(text)], { indent: { left: 200 }, spacingAfter: 100 });
 }
 
+// ---------- Bảng "Danh mục tính năng website" (STT / Tên tính năng / Mô tả) ----------
+function cellText(text, opts = {}) {
+  return new TableCell({
+    width: opts.width,
+    shading: opts.shading,
+    margins: { top: 60, bottom: 60, left: 100, right: 100 },
+    children: [p([run(text, { bold: opts.bold })], { spacingAfter: 0 })],
+  });
+}
+
+function featureTable(features) {
+  const borders = {
+    top: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+    bottom: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+    left: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+    right: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+    insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+    insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "999999" },
+  };
+
+  const headerRow = new TableRow({
+    tableHeader: true,
+    children: [
+      cellText("STT", { width: { size: 700, type: WidthType.DXA }, bold: true, shading: { type: ShadingType.CLEAR, fill: "EFEFEF" } }),
+      cellText("Tên tính năng", { width: { size: 2600, type: WidthType.DXA }, bold: true, shading: { type: ShadingType.CLEAR, fill: "EFEFEF" } }),
+      cellText("Mô tả", { width: { size: 5638, type: WidthType.DXA }, bold: true, shading: { type: ShadingType.CLEAR, fill: "EFEFEF" } }),
+    ],
+  });
+
+  const rows = features.map((f, i) => new TableRow({
+    children: [
+      cellText(String(i + 1), { width: { size: 700, type: WidthType.DXA } }),
+      cellText(f.name, { width: { size: 2600, type: WidthType.DXA } }),
+      cellText(f.description || "", { width: { size: 5638, type: WidthType.DXA } }),
+    ],
+  }));
+
+  return new Table({
+    width: { size: 8938, type: WidthType.DXA },
+    borders,
+    rows: [headerRow, ...rows],
+  });
+}
+
 /**
  * @param {object} data - dữ liệu tổng hợp từ 4 bước của form (xem contract-web-view.js)
  * @returns {Promise<Blob>} file .docx sẵn sàng tải xuống
@@ -65,6 +109,7 @@ export async function generateContractDocx(data) {
     partyA, // { companyName, taxCode, representativeTitle, representativeName, representativePosition, address, phone, email }
     partyB, // { companyName, taxCode, address, hotline, email, bankAccount, bankName, representativeTitle, representativeName, representativePosition }
     content, // { domainNote, hostingNote, demoDays, acceptanceDays, contractValue, vatPercent, effectiveDate, liquidationDate }
+    features = [], // [{ name, description }] — danh mục tính năng website, đã sắp theo thứ tự người dùng chọn
   } = data;
 
   const vatAmount = Math.round((content.contractValue * content.vatPercent) / (100 + content.vatPercent));
@@ -118,8 +163,13 @@ export async function generateContractDocx(data) {
           itemNumber(2, "Bên B hỗ trợ các dịch vụ đi kèm như sau:"),
           itemLetter("a", `Cung cấp tên miền và hosting để phục vụ cho phạm vi công việc thiết kế website quy định tại Điều 1.1 Hợp đồng này, cụ thể: Tên miền: ${content.domainNote}; Hosting: ${content.hostingNote}.`),
           itemLetter("b", `Nội dung khác: ${content.extraServicesNote}`),
-          itemNumber(3, "Trong quá trình triển khai, việc chỉnh sửa chỉ được thực hiện nếu trước đó hai Bên có thoả thuận. Phạm vi và thời gian chỉnh sửa do các Bên thỏa thuận tuy nhiên không được thay đổi layout đã thống nhất từ ban đầu."),
-          itemNumber(4, "Trường hợp chỉnh sửa những vấn đề không nằm trong thoả thuận ban đầu, thì tùy thuộc vào nội dung yêu cầu chỉnh sửa, hai Bên sẽ thống nhất lại về giá cả, phương thức thực hiện trước khi tiến hành và lập biên bản mới với nội dung như đã thỏa thuận. Biên bản này có thể được coi là một Hợp đồng mới giữa hai Bên."),
+          ...(features.length ? [
+            itemNumber(3, "Danh mục tính năng website chi tiết như sau:"),
+            featureTable(features),
+            new Paragraph({ spacing: { after: 200 }, children: [] }),
+          ] : []),
+          itemNumber(features.length ? 4 : 3, "Trong quá trình triển khai, việc chỉnh sửa chỉ được thực hiện nếu trước đó hai Bên có thoả thuận. Phạm vi và thời gian chỉnh sửa do các Bên thỏa thuận tuy nhiên không được thay đổi layout đã thống nhất từ ban đầu."),
+          itemNumber(features.length ? 5 : 4, "Trường hợp chỉnh sửa những vấn đề không nằm trong thoả thuận ban đầu, thì tùy thuộc vào nội dung yêu cầu chỉnh sửa, hai Bên sẽ thống nhất lại về giá cả, phương thức thực hiện trước khi tiến hành và lập biên bản mới với nội dung như đã thỏa thuận. Biên bản này có thể được coi là một Hợp đồng mới giữa hai Bên."),
 
           // ---------------- ĐIỀU 2 ----------------
           heading("ĐIỀU 2: THỜI GIAN THỰC HIỆN"),
