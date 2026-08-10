@@ -1,12 +1,13 @@
 // ==========================================================================
 // VIEWS/CONTRACT-WEB-VIEW.JS — Trang "Tạo hợp đồng Web"
 //
-// Wizard 5 bước, đúng logic yêu cầu:
+// Wizard 6 bước, đúng logic yêu cầu:
 //   1. Thông tin hợp đồng   (số HĐ tự sinh, ngày ký)
 //   2. Bên A (khách hàng)   (nhập mới toàn bộ)
 //   3. Nội dung & Giá trị   (những gì thay đổi theo từng dự án)
-//   4. Bên B (doanh nghiệp) (tự động điền từ Cài đặt hệ thống, có thể sửa)
-//   5. Xem trước & Xuất file (.docx tải trực tiếp, PDF qua in trình duyệt)
+//   4. Tính năng Website    (chọn từ danh mục có sẵn + thêm tuỳ chỉnh, kéo-thả sắp thứ tự)
+//   5. Bên B (doanh nghiệp) (tự động điền từ Cài đặt hệ thống, có thể sửa)
+//   6. Xem trước & Xuất file (.docx tải trực tiếp, PDF qua in trình duyệt)
 //
 // Chỉ hoàn thành 1 bước mới được đi bước kế tiếp (validate mỗi bước).
 // ==========================================================================
@@ -26,9 +27,35 @@ const STEPS = [
   { id: "info", label: "Thông tin hợp đồng" },
   { id: "party-a", label: "Bên A - Khách hàng" },
   { id: "content", label: "Nội dung & Giá trị" },
+  { id: "features", label: "Tính năng Website" },
   { id: "party-b", label: "Bên B - Doanh nghiệp" },
   { id: "preview", label: "Xem trước & Xuất file" },
 ];
+
+// ==========================================================================
+// DANH MỤC TÍNH NĂNG WEBSITE MẶC ĐỊNH (bước "Tính năng Website")
+// Mỗi mục có mô tả mặc định sẵn để đưa vào bảng trong hợp đồng — người dùng
+// có thể sửa lại mô tả hoặc bỏ chọn tính năng không cần thiết. Có thể thêm
+// tính năng tùy chỉnh (isCustom: true) ở dưới danh mục này.
+// ==========================================================================
+const FEATURE_CATALOG = [
+  { id: "trang-chu", name: "Trang chủ", description: "Giao diện trang chủ giới thiệu tổng quan doanh nghiệp/sản phẩm, tối ưu trải nghiệm người dùng." },
+  { id: "seo-co-ban", name: "SEO cơ bản", description: "Tối ưu thẻ tiêu đề, mô tả, đường dẫn thân thiện, sitemap.xml, robots.txt theo chuẩn SEO onpage." },
+  { id: "banner-dong", name: "Banner động", description: "Slideshow/banner quảng cáo tự động chuyển đổi ở trang chủ hoặc các trang chuyên mục." },
+  { id: "popup-qc", name: "Popup quảng cáo", description: "Popup hiển thị khuyến mãi, thông báo hoặc thu thập thông tin khách hàng khi truy cập website." },
+  { id: "tin-tuc-blog", name: "Tin tức / Blog", description: "Chuyên mục đăng tải bài viết, tin tức, chia sẻ kiến thức nhằm tăng tương tác và hỗ trợ SEO." },
+  { id: "gio-hang-nc", name: "Giỏ hàng nâng cao", description: "Chức năng giỏ hàng với tính năng lưu tạm, áp dụng mã giảm giá và tính toán vận chuyển tự động." },
+  { id: "bo-loc-sp", name: "Bộ lọc sản phẩm", description: "Cho phép người dùng lọc sản phẩm theo giá, danh mục, thương hiệu và các thuộc tính khác." },
+  { id: "responsive", name: "Responsive Mobile", description: "Giao diện website tự động tương thích và hiển thị tối ưu trên mọi thiết bị di động." },
+  { id: "ssl-baomat", name: "SSL & Bảo mật", description: "Chứng chỉ bảo mật SSL và các biện pháp bảo vệ dữ liệu, chống tấn công cơ bản cho website." },
+  { id: "chat-zalo", name: "Chat Messenger / Zalo", description: "Tích hợp khung chat trực tuyến qua Messenger/Zalo để hỗ trợ khách hàng theo thời gian thực." },
+  { id: "dangnhap-dangky", name: "Đăng nhập / Đăng ký", description: "Chức năng tạo tài khoản, đăng nhập để quản lý thông tin cá nhân và lịch sử giao dịch." },
+  { id: "lichsu-donhang", name: "Lịch sử đơn hàng", description: "Cho phép khách hàng xem lại các đơn hàng đã đặt và trạng thái xử lý đơn hàng." },
+];
+
+function buildDefaultFeatures() {
+  return FEATURE_CATALOG.map((f, i) => ({ ...f, included: true, order: i + 1, isCustom: false }));
+}
 
 /**
  * @param {HTMLElement} container - #main-content
@@ -51,6 +78,7 @@ export async function render(container) {
     signDate: toInputDateValue(new Date()),
     partyA: { companyName: "", taxCode: "", representativeTitle: "Ông", representativeName: "", representativePosition: "", address: "", phone: "", email: "" },
     content: { domainNote: "Tặng 01 tên miền .com", hostingNote: "2GB", extraServicesNote: "Thiết kế website chuẩn SEO, đa phương tiện.", demoDays: 10, acceptanceDays: 1, contractValue: 0, vatPercent: 8, effectiveDate: "", liquidationDate: "" },
+    features: buildDefaultFeatures(),
     partyB: businessInfo || { companyName: "", taxCode: "", address: "", hotline: "", email: "", bankAccount: "", bankName: "", representativeTitle: "Ông", representativeName: "", representativePosition: "" },
   };
 
@@ -70,6 +98,7 @@ export async function render(container) {
   bindStepInfo(root, state);
   bindStepPartyA(root, state);
   bindStepContent(root, state);
+  bindStepFeatures(root, state);
   bindStepPartyB(root, state);
 
   const wizard = createFormWizard({
@@ -216,7 +245,30 @@ function buildMarkup() {
           <p class="value-in-words" id="valueInWords"></p>
         </div>
 
-        <!-- STEP 4: Bên B -->
+        <!-- STEP 4: Tính năng Website -->
+        <div class="wizard-step-panel" data-wizard-panel="features">
+          <div class="feature-head">
+            <div>
+              <h3>Phạm vi tính năng Website</h3>
+              <p class="field-hint">Chọn các tính năng đưa vào hợp đồng. Có thể thêm tính năng tùy chỉnh và kéo-thả để sắp xếp thứ tự — bảng bên dưới sẽ được đưa nguyên văn vào Điều 1 của file xuất ra.</p>
+            </div>
+            <span class="feature-count" id="featureCount">0 tính năng</span>
+          </div>
+
+          <div class="feature-grid" id="featureGrid"></div>
+
+          <div class="feature-custom-add">
+            <input type="text" id="f-customFeatureName" placeholder="Tên tính năng tùy chỉnh..." />
+            <button type="button" class="btn btn-ghost" id="btnAddCustomFeature">+ Thêm tính năng mới</button>
+          </div>
+
+          <div class="feature-order">
+            <p class="feature-order__label">Thứ tự trong hợp đồng (kéo để sắp xếp)</p>
+            <div class="feature-order-list" id="featureOrderList"></div>
+          </div>
+        </div>
+
+        <!-- STEP 5: Bên B -->
         <div class="wizard-step-panel" data-wizard-panel="party-b">
           <p class="field-hint" style="margin-bottom:14px;">Đã tự động điền từ Cài đặt hệ thống. Chỉ sửa nếu hợp đồng này cần thông tin khác.</p>
           <div class="form-grid">
@@ -266,7 +318,7 @@ function buildMarkup() {
           </div>
         </div>
 
-        <!-- STEP 5: Xem trước -->
+        <!-- STEP 6: Xem trước -->
         <div class="wizard-step-panel" data-wizard-panel="preview">
           <div id="previewContent" class="contract-preview"></div>
           <div class="preview-actions">
@@ -331,6 +383,151 @@ function bindStepContent(root, state) {
     });
   });
   updateValueInWords(root, state);
+}
+
+// ==========================================================================
+// STEP "features" — chọn tính năng + sắp xếp thứ tự (kéo-thả)
+// ==========================================================================
+function bindStepFeatures(root, state) {
+  const grid = root.querySelector("#featureGrid");
+  const addNameInput = root.querySelector("#f-customFeatureName");
+  const addBtn = root.querySelector("#btnAddCustomFeature");
+
+  renderFeatureGrid(root, state);
+  renderFeatureOrderList(root, state);
+
+  grid.addEventListener("click", (e) => {
+    const card = e.target.closest("[data-feature-id]");
+    if (!card) return;
+    const feature = state.features.find((f) => f.id === card.dataset.featureId);
+    if (!feature) return;
+    feature.included = !feature.included;
+    if (feature.included) {
+      feature.order = nextOrder(state);
+    }
+    renderFeatureGrid(root, state);
+    renderFeatureOrderList(root, state);
+  });
+
+  function addCustomFeature() {
+    const name = addNameInput.value.trim();
+    if (!name) return;
+    state.features.push({
+      id: `custom-${Date.now()}`,
+      name,
+      description: "",
+      included: true,
+      order: nextOrder(state),
+      isCustom: true,
+    });
+    addNameInput.value = "";
+    renderFeatureGrid(root, state);
+    renderFeatureOrderList(root, state);
+  }
+
+  addBtn.addEventListener("click", addCustomFeature);
+  addNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addCustomFeature(); }
+  });
+}
+
+function nextOrder(state) {
+  const included = state.features.filter((f) => f.included);
+  return included.length ? Math.max(...included.map((f) => f.order)) + 1 : 1;
+}
+
+function renderFeatureGrid(root, state) {
+  const grid = root.querySelector("#featureGrid");
+  const countEl = root.querySelector("#featureCount");
+  const included = state.features.filter((f) => f.included);
+  countEl.textContent = `${included.length} tính năng`;
+
+  grid.innerHTML = FEATURE_CATALOG.map((base) => {
+    const f = state.features.find((x) => x.id === base.id) || base;
+    const checked = f.included;
+    return `
+      <label class="feature-card ${checked ? "is-checked" : ""}" data-feature-id="${f.id}">
+        <input type="checkbox" ${checked ? "checked" : ""} tabindex="-1" />
+        <span>${escapeHtml(f.name)}</span>
+      </label>
+    `;
+  }).join("");
+}
+
+function renderFeatureOrderList(root, state) {
+  const list = root.querySelector("#featureOrderList");
+  const included = state.features.filter((f) => f.included).sort((a, b) => a.order - b.order);
+
+  if (!included.length) {
+    list.innerHTML = `<p class="field-hint">Chưa có tính năng nào được chọn.</p>`;
+    return;
+  }
+
+  list.innerHTML = included.map((f, i) => `
+    <div class="feature-order-item" draggable="true" data-feature-id="${f.id}">
+      <div class="feature-order-item__row">
+        <span class="feature-order-item__handle" aria-hidden="true">⠿</span>
+        <span class="feature-order-item__index">${i + 1}. ${escapeHtml(f.name)}</span>
+        ${f.isCustom ? `<button type="button" class="feature-order-item__remove" data-remove="${f.id}" aria-label="Xóa">✕</button>` : ""}
+      </div>
+      <textarea class="feature-order-item__desc" data-desc="${f.id}" rows="2" placeholder="Mô tả tính năng...">${escapeHtml(f.description)}</textarea>
+    </div>
+  `).join("");
+
+  // ---------- Sửa mô tả ----------
+  list.querySelectorAll("[data-desc]").forEach((textarea) => {
+    textarea.addEventListener("input", () => {
+      const f = state.features.find((x) => x.id === textarea.dataset.desc);
+      if (f) f.description = textarea.value;
+    });
+  });
+
+  // ---------- Xóa tính năng tùy chỉnh ----------
+  list.querySelectorAll("[data-remove]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.features = state.features.filter((f) => f.id !== btn.dataset.remove);
+      renderFeatureGrid(root, state);
+      renderFeatureOrderList(root, state);
+    });
+  });
+
+  // ---------- Kéo-thả sắp xếp thứ tự (HTML5 Drag & Drop) ----------
+  let draggingId = null;
+  list.querySelectorAll(".feature-order-item").forEach((item) => {
+    item.addEventListener("dragstart", () => {
+      draggingId = item.dataset.featureId;
+      item.classList.add("is-dragging");
+    });
+    item.addEventListener("dragend", () => {
+      item.classList.remove("is-dragging");
+      draggingId = null;
+    });
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggingId || draggingId === item.dataset.featureId) return;
+      item.classList.add("is-drag-over");
+    });
+    item.addEventListener("dragleave", () => item.classList.remove("is-drag-over"));
+    item.addEventListener("drop", (e) => {
+      e.preventDefault();
+      item.classList.remove("is-drag-over");
+      if (!draggingId || draggingId === item.dataset.featureId) return;
+      reorderFeatures(state, draggingId, item.dataset.featureId);
+      renderFeatureOrderList(root, state);
+    });
+  });
+}
+
+/** Di chuyển tính năng `draggedId` tới vị trí ngay trước `targetId`, viết lại `order` 1..n. */
+function reorderFeatures(state, draggedId, targetId) {
+  const included = state.features.filter((f) => f.included).sort((a, b) => a.order - b.order);
+  const fromIndex = included.findIndex((f) => f.id === draggedId);
+  const toIndex = included.findIndex((f) => f.id === targetId);
+  if (fromIndex === -1 || toIndex === -1) return;
+
+  const [moved] = included.splice(fromIndex, 1);
+  included.splice(toIndex, 0, moved);
+  included.forEach((f, i) => { f.order = i + 1; });
 }
 
 function bindStepPartyB(root, state) {
@@ -404,6 +601,13 @@ function validateStep(stepId, root, state) {
     return true;
   }
 
+  if (stepId === "features") {
+    const included = state.features.filter((f) => f.included);
+    if (!included.length) return fail("Vui lòng chọn ít nhất 1 tính năng cho website.");
+    if (included.some((f) => !f.description.trim())) return fail("Vui lòng điền mô tả cho tất cả tính năng đã chọn.");
+    return true;
+  }
+
   if (stepId === "party-b") {
     const b = state.partyB;
     if (!b.companyName || !b.taxCode || !b.address || !b.hotline || !b.email || !b.representativeName || !b.representativePosition) {
@@ -457,6 +661,22 @@ function renderPreview(root, state) {
       </div>
     </div>
 
+    <h4>Danh mục tính năng website</h4>
+    <table class="preview-feature-table">
+      <thead>
+        <tr><th>STT</th><th>Tên tính năng</th><th>Mô tả</th></tr>
+      </thead>
+      <tbody>
+        ${orderedFeatures(state).map((f, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(f.name)}</td>
+            <td>${escapeHtml(f.description)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+
     <h4>Nội dung & Giá trị hợp đồng</h4>
     <ul class="preview-list">
       <li>Tên miền: ${escapeHtml(c.domainNote)} · Hosting: ${escapeHtml(c.hostingNote)}</li>
@@ -467,13 +687,21 @@ function renderPreview(root, state) {
       <li>Đợt 1: ${dot1.toLocaleString("vi-VN")} VNĐ (ký hợp đồng) · Đợt 2: ${dot2.toLocaleString("vi-VN")} VNĐ (nghiệm thu)</li>
     </ul>
 
-    <p class="field-hint">Toàn bộ 10 Điều khoản đầy đủ (phạm vi, thời gian, thanh toán, quyền & nghĩa vụ, nghiệm thu, bàn giao, bảo hành, chấm dứt, bồi thường, điều khoản chung) sẽ được đưa nguyên văn vào file xuất ra — đúng như hợp đồng mẫu gốc.</p>
+    <p class="field-hint">Toàn bộ 10 Điều khoản đầy đủ (phạm vi, thời gian, thanh toán, quyền & nghĩa vụ, nghiệm thu, bàn giao, bảo hành, chấm dứt, bồi thường, điều khoản chung) sẽ được đưa nguyên văn vào file xuất ra — đúng như hợp đồng mẫu gốc. Bảng tính năng website được chèn vào ngay trong Điều 1 (Phạm vi hợp đồng).</p>
   `;
 }
 
 // ==========================================================================
 // FINISH: lưu Firestore + xuất file
 // ==========================================================================
+/** Tính năng đã chọn, sắp theo `order`, đánh lại STT 1..n — dùng cho preview + xuất file. */
+function orderedFeatures(state) {
+  return state.features
+    .filter((f) => f.included)
+    .sort((a, b) => a.order - b.order)
+    .map((f) => ({ name: f.name, description: f.description }));
+}
+
 function collectFormData(state) {
   const signDate = parseInputDate(state.signDate) || new Date();
   return {
@@ -486,6 +714,7 @@ function collectFormData(state) {
       effectiveDate: state.content.effectiveDate ? parseInputDate(state.content.effectiveDate) : null,
       liquidationDate: state.content.liquidationDate ? parseInputDate(state.content.liquidationDate) : null,
     },
+    features: orderedFeatures(state),
   };
 }
 
@@ -563,6 +792,9 @@ function exportPdfViaPrint(root, state) {
       h3,h4{margin:12px 0 6px;}
       .preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:12px 0;}
       ul{padding-left:18px;}
+      table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13px;}
+      th,td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top;}
+      th{background:#eee;}
     </style>
     </head><body>${el.innerHTML}</body></html>
   `);
