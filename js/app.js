@@ -37,6 +37,11 @@ const routes = {
     css: "css/views/contract-form.css",
     load: () => import("./views/contract-seo-view.js"),
   },
+  "history": {
+    title: "Lịch sử xuất hợp đồng",
+    css: "css/views/export-history.css",
+    load: () => import("./views/export-history-view.js"),
+  },
   "profile": {
     title: "Thông tin cá nhân",
     css: "css/views/placeholder.css",
