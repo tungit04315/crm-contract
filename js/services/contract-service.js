@@ -5,6 +5,9 @@
 //
 // Lưu tại: Firestore collection "contracts", mỗi document là 1 hợp đồng đã
 // tạo (dùng lại được cho trang chủ thống kê, danh sách hợp đồng sau này).
+//
+// CẬP NHẬT: bổ sung subscribeContracts() — lắng nghe realtime TOÀN BỘ danh
+// sách hợp đồng đã tạo, phục vụ trang "Lịch sử xuất" (export-history-view.js).
 // ==========================================================================
 
 import { db } from "./firebase-config.js";
@@ -13,8 +16,10 @@ import {
   addDoc,
   query,
   where,
+  orderBy,
   getCountFromServer,
   getDocs,
+  onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -112,4 +117,61 @@ export async function saveContract(contractData, type = "web") {
     updatedAt: serverTimestamp(),
   });
   return docRef.id;
+}
+
+// ==========================================================================
+// LỊCH SỬ XUẤT HỢP ĐỒNG (export-history-view.js)
+// ==========================================================================
+
+/** Chuyển Firestore Timestamp -> Date. Giữ nguyên nếu đã là Date hoặc null/undefined. */
+function toDateIfTimestamp(value) {
+  if (value && typeof value.toDate === "function") return value.toDate();
+  return value ?? null;
+}
+
+/**
+ * Chuẩn hoá 1 document hợp đồng lấy từ Firestore về dạng dùng lại được NGAY
+ * với docx-generator.js / pdf-generator.js / contract-preview.js — không cần
+ * xử lý gì thêm ở nơi gọi (signDate, content.effectiveDate,
+ * content.liquidationDate, createdAt, updatedAt đều được chuyển từ
+ * Firestore Timestamp sang Date object).
+ */
+function normalizeContract(id, raw) {
+  const content = { ...(raw.content || {}) };
+  if ("effectiveDate" in content) content.effectiveDate = toDateIfTimestamp(content.effectiveDate);
+  if ("liquidationDate" in content) content.liquidationDate = toDateIfTimestamp(content.liquidationDate);
+
+  return {
+    ...raw,
+    id,
+    signDate: toDateIfTimestamp(raw.signDate),
+    createdAt: toDateIfTimestamp(raw.createdAt),
+    updatedAt: toDateIfTimestamp(raw.updatedAt),
+    content,
+    status: raw.status || "pending",
+  };
+}
+
+/**
+ * Lắng nghe realtime TOÀN BỘ danh sách hợp đồng đã tạo (mới xuất trước),
+ * dùng cho trang "Lịch sử xuất". Việc lọc/tìm kiếm/sắp xếp/phân trang được
+ * xử lý ở phía client (export-history-view.js) — vì số lượng hợp đồng của
+ * 1 doanh nghiệp vừa/nhỏ thường không quá lớn, cách này tránh phải tạo
+ * composite index thủ công trên Firestore Console khi kết hợp nhiều điều
+ * kiện lọc cùng lúc (loại + trạng thái + khoảng ngày + khoảng giá trị).
+ *
+ * @param {(contracts: object[]) => void} onData
+ * @param {(err: Error) => void} [onError]
+ * @returns {() => void} hàm hủy lắng nghe (gọi khi rời trang)
+ */
+export function subscribeContracts(onData, onError) {
+  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
+  return onSnapshot(
+    q,
+    (snap) => onData(snap.docs.map((d) => normalizeContract(d.id, d.data()))),
+    (err) => {
+      console.error("Không thể tải lịch sử hợp đồng:", err);
+      onError?.(err);
+    }
+  );
 }
