@@ -17,17 +17,19 @@
 
 import { toVietnameseLongDate } from "./date-utils.js";
 import { soTienBangChu } from "./number-to-words.js";
+import { buildTickContractBlocks, tickSignatureNames } from "../services/tick-contract-model.js";
 
 export function escapeHtml(str) {
     return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 /**
- * @param {"web"|"seo"} type
+ * @param {"web"|"seo"|"tick"} type
  * @param {object} data - dữ liệu hợp đồng đã chuẩn hoá (xem contract-service.js)
  * @returns {string} HTML xem trước, gán trực tiếp vào innerHTML
  */
 export function buildContractPreviewHtml(type, data) {
+    if (type === "tick") return buildTickPreview(data);
     return type === "seo" ? buildSeoPreview(data) : buildWebPreview(data);
 }
 
@@ -165,3 +167,47 @@ function buildSeoPreview(data) {
     </ul>
   `;
 }
+
+// ==========================================================================
+// HỢP ĐỒNG TÍCH XANH FACEBOOK (META) — hiển thị TOÀN VĂN hợp đồng, dựng từ
+// cùng nguồn block với file Word/PDF (services/tick-contract-model.js).
+// Dùng style inline để chạy được ở cả trang tạo hợp đồng lẫn modal Lịch sử xuất.
+// ==========================================================================
+function tickPartsHtml(t, base = {}) {
+    const parts = Array.isArray(t) ? t : [{ t }];
+    return parts.map((x) => {
+        let h = escapeHtml(x.t);
+        if (x.b ?? base.b) h = `<strong>${h}</strong>`;
+        if (x.i ?? base.i) h = `<em>${h}</em>`;
+        return h;
+    }).join("");
+}
+
+function buildTickPreview(data) {
+    const blocks = buildTickContractBlocks(data);
+    const names = tickSignatureNames(data);
+    const wrap = "font-family:'Times New Roman',serif;font-size:14px;line-height:1.55;color:#111;";
+    const body = blocks.map((b) => {
+        switch (b.k) {
+            case "c":
+                return `<p style="text-align:center;margin:0 0 ${Math.max(4, Math.round((b.after ?? 120) / 20))}px;${b.sz ? "font-size:17px;" : ""}">${tickPartsHtml(b.t, { b: b.b, i: b.i })}</p>`;
+            case "h":
+                return `<p style="margin:18px 0 6px;font-weight:700;">${escapeHtml(b.t)}</p>`;
+            case "s":
+                return `<p style="margin:10px 0 4px;font-weight:700;">${escapeHtml(b.t)}</p>`;
+            case "p":
+                return `<p style="margin:0 0 6px;text-align:justify;">${tickPartsHtml(b.t, { b: b.b, i: b.i })}</p>`;
+            case "li":
+                return `<p style="margin:0 0 4px;padding-left:${b.l === 2 ? 44 : 20}px;text-indent:-12px;text-align:justify;">${b.l === 2 ? "+" : "-"}&nbsp; ${tickPartsHtml(b.t)}</p>`;
+            case "sig":
+                return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px;text-align:center;">
+                    <div><strong>ĐẠI DIỆN BÊN A</strong><br><em style="font-size:12px;">(Ký, ghi rõ họ tên, đóng dấu)</em><div style="height:64px;"></div><strong>${escapeHtml(names.a)}</strong></div>
+                    <div><strong>ĐẠI DIỆN BÊN B</strong><br><em style="font-size:12px;">(Ký, ghi rõ họ tên, đóng dấu)</em><div style="height:64px;"></div><strong>${escapeHtml(names.b)}</strong></div>
+                </div>`;
+            default:
+                return "";
+        }
+    }).join("");
+    return `<div style="${wrap}">${body}</div>`;
+}
+
