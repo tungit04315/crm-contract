@@ -28,6 +28,7 @@ const COLLECTION = "contracts";
 const TYPE_CODE = {
   web: "HĐTK-WEB",
   seo: "HĐTK-SEO",
+  tick: "HĐDV-FB", // Hợp đồng dịch vụ tư vấn đăng ký Tích xanh Facebook (Meta)
 };
 
 /** Bỏ dấu + lấy chữ cái đầu mỗi từ, in hoa. "Nguyễn Xuân Đàm" -> "NXĐ" */
@@ -45,7 +46,7 @@ function getInitials(fullName) {
  * Ví dụ: 200326NXĐ/HĐTK-WEB/....
  * Có thể chỉnh sửa lại tự do sau khi sinh — đây chỉ là gợi ý mặc định.
  *
- * @param {{ signDate: Date, representativeName: string, type?: "web"|"seo" }} opts
+ * @param {{ signDate: Date, representativeName: string, type?: "web"|"seo"|"tick" }} opts
  */
 export function buildContractNumber({ signDate, representativeName, type = "web" }) {
   const d = signDate instanceof Date ? signDate : new Date(signDate);
@@ -100,7 +101,7 @@ export async function isContractNumberTaken(contractNumber) {
  * Tự kiểm tra trùng số hợp đồng trước khi ghi; nếu trùng sẽ báo lỗi rõ ràng để
  * người dùng quay lại Bước 1 sửa số hợp đồng.
  * @param {object} contractData - toàn bộ dữ liệu form (bên A, bên B, nội dung, số HĐ...)
- * @param {"web"|"seo"} type
+ * @param {"web"|"seo"|"tick"} type
  */
 export async function saveContract(contractData, type = "web") {
   const taken = await isContractNumberTaken(contractData.contractNumber);
