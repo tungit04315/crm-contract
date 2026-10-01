@@ -37,6 +37,11 @@ const routes = {
     css: "css/views/contract-form.css",
     load: () => import("./views/contract-seo-view.js"),
   },
+  "contract/tick": {
+    title: "Tạo hợp đồng Tích xanh Meta",
+    css: "css/views/contract-form.css",
+    load: () => import("./views/contract-tick-view.js"),
+  },
   "history": {
     title: "Lịch sử xuất hợp đồng",
     css: "css/views/export-history.css",
