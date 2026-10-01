@@ -27,6 +27,7 @@ import pdfMakeModule from "https://esm.sh/pdfmake@0.2.10/build/pdfmake.js";
 import pdfFontsModule from "https://esm.sh/pdfmake@0.2.10/build/vfs_fonts.js";
 import { toVietnameseLongDate, toShortDate, addDays } from "../utils/date-utils.js";
 import { soTienBangChu } from "../utils/number-to-words.js";
+import { buildTickContractBlocks, tickSignatureNames } from "./tick-contract-model.js";
 
 // pdfMake đôi khi được esm.sh trả về dạng { default } thay vì trực tiếp.
 const pdfMake = pdfMakeModule?.default ?? pdfMakeModule;
@@ -564,3 +565,97 @@ export function generateSeoContractPdf(data) {
   });
 }
 
+// ==========================================================================
+// generateTickContractPdf — Hợp đồng dịch vụ tư vấn đăng ký TÍCH XANH
+// FACEBOOK (Meta). Dùng chung nguồn nội dung với bản Word
+// (tick-contract-model.js) nên hai bản luôn khớp nhau.
+// ==========================================================================
+function tickParts(t, base = {}) {
+  const parts = Array.isArray(t) ? t : [{ t }];
+  return parts.map((x) => ({ text: x.t, bold: x.b ?? base.bold, italics: x.i ?? base.italic }));
+}
+
+function tickBlockToPdf(block, data) {
+  switch (block.k) {
+    case "c":
+      return {
+        text: tickParts(block.t, { bold: block.b, italic: block.i }),
+        alignment: "center",
+        fontSize: block.sz ? block.sz / 2 - 1 : undefined,
+        margin: [0, 0, 0, Math.round((block.after ?? 120) / 20)],
+      };
+    case "h":
+      return heading(block.t);
+    case "s":
+      return { text: block.t, bold: true, margin: [0, 6, 0, 4] };
+    case "p":
+      return { text: tickParts(block.t, { bold: block.b, italic: block.i }), alignment: "justify", margin: [0, 0, 0, 5] };
+    case "li":
+      return {
+        columns: [
+          { width: 10, text: block.l === 2 ? "+" : "-" },
+          { width: "*", text: tickParts(block.t), alignment: "justify" },
+        ],
+        columnGap: 4,
+        margin: [block.l === 2 ? 36 : 16, 0, 0, 4],
+      };
+    case "sig": {
+      const names = tickSignatureNames(data);
+      const col = (title, name) => ({
+        stack: [
+          { text: title, bold: true, alignment: "center" },
+          { text: "(Ký, ghi rõ họ tên, đóng dấu)", italics: true, fontSize: 9, alignment: "center", margin: [0, 2, 0, 56] },
+          { text: name, bold: true, alignment: "center" },
+        ],
+      });
+      return { margin: [0, 24, 0, 0], unbreakable: true, columns: [col("ĐẠI DIỆN BÊN A", names.a), col("ĐẠI DIỆN BÊN B", names.b)] };
+    }
+    default:
+      return { text: "" };
+  }
+}
+
+/**
+ * Gom (tiêu đề Điều + tiêu đề mục con) với nội dung ngay sau nó thành 1 khối không
+ * bị ngắt trang -> không còn tiêu đề "mồ côi" ở cuối trang (pdfmake 0.2 chưa có keepWithNext).
+ */
+function buildTickPdfContent(data) {
+  const blocks = buildTickContractBlocks(data);
+  const out = [];
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].k !== "h" && blocks[i].k !== "s") {
+      out.push(tickBlockToPdf(blocks[i], data));
+      continue;
+    }
+    const group = [];
+    while (i < blocks.length && (blocks[i].k === "h" || blocks[i].k === "s")) {
+      group.push(tickBlockToPdf(blocks[i], data));
+      i++;
+    }
+    if (i < blocks.length) group.push(tickBlockToPdf(blocks[i], data)); // nội dung đầu tiên sau tiêu đề
+    out.push({ stack: group, unbreakable: true });
+  }
+  return out;
+}
+
+/**
+ * @param {object} data - dữ liệu từ contract-tick-view.js (hoặc đã lưu trong Firestore)
+ * @returns {Promise<Blob>} file .pdf
+ */
+export function generateTickContractPdf(data) {
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [71, 57, 57, 62],
+    defaultStyle: { font: "Roboto", fontSize: 11, lineHeight: 1.15 },
+    footer: (currentPage, pageCount) => ({ text: `Trang ${currentPage} / ${pageCount}`, alignment: "center", fontSize: 9, margin: [0, 18, 0, 0] }),
+    content: buildTickPdfContent(data),
+  };
+
+  return new Promise((resolve, reject) => {
+    try {
+      pdfMake.createPdf(docDefinition).getBlob((blob) => resolve(blob));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
