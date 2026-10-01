@@ -34,7 +34,7 @@
 /* ---------- Mini stat cards ---------- */
 .mini-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     margin-bottom: 20px;
 }
@@ -299,6 +299,11 @@
 .hist-type--seo {
     background: var(--amber-100);
     color: var(--amber-600);
+}
+
+.hist-type--tick {
+    background: var(--blue-100);
+    color: var(--blue-700);
 }
 
 .hist-status {
