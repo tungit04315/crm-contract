@@ -15,15 +15,15 @@
 // ==========================================================================
 
 import { subscribeContracts } from "../services/contract-service.js";
-import { generateContractDocx, generateSeoContractDocx, downloadBlob } from "../services/docx-generator.js";
-import { generateContractPdf, generateSeoContractPdf } from "../services/pdf-generator.js";
+import { generateContractDocx, generateSeoContractDocx, generateTickContractDocx, downloadBlob } from "../services/docx-generator.js";
+import { generateContractPdf, generateSeoContractPdf, generateTickContractPdf } from "../services/pdf-generator.js";
 import { buildContractPreviewHtml, escapeHtml } from "../utils/contract-preview.js";
 import { toShortDate } from "../utils/date-utils.js";
 import { showToast } from "../services/toast.js";
 
 const PAGE_SIZE = 10;
 
-const TYPE_LABELS = { web: "Web", seo: "SEO" };
+const TYPE_LABELS = { web: "Web", seo: "SEO", tick: "Tích xanh" };
 const STATUS_LABELS = { pending: "Chờ xử lý", in_progress: "Đang triển khai", completed: "Hoàn tất" };
 
 const DATE_PRESETS = [
@@ -66,6 +66,7 @@ const ICON_DOC = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><p
 const ICON_CHECK = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_WEB = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const ICON_SEO = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 19 9 9l4 6 3-5 4 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_TICK = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 3l2.4 1.7 2.9-.2 1 2.7 2.4 1.7-.9 2.8.9 2.8-2.4 1.7-1 2.7-2.9-.2L12 21l-2.4-1.7-2.9.2-1-2.7L3.3 15.1l.9-2.8-.9-2.8 2.4-1.7 1-2.7 2.9.2L12 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m8.8 12.2 2.3 2.3 4.2-4.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_EMPTY = `<svg width="52" height="52" viewBox="0 0 24 24" fill="none"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke="currentColor" stroke-width="1.5"/><path d="M14 3v5h5M8 13h5M8 17h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
 /**
@@ -129,6 +130,10 @@ function buildMarkup() {
         <div class="mini-card__icon" style="background:var(--amber-100);color:var(--amber-600);">${ICON_SEO}</div>
         <div><div class="mini-card__value" id="statSeoHist">0</div><div class="mini-card__label">Hợp đồng SEO</div></div>
       </div>
+      <div class="mini-card">
+        <div class="mini-card__icon" style="background:var(--blue-50);color:var(--blue-600);">${ICON_TICK}</div>
+        <div><div class="mini-card__value" id="statTickHist">0</div><div class="mini-card__label">Hợp đồng Tích xanh</div></div>
+      </div>
     </div>
 
     <div class="panel hist-filter-panel">
@@ -141,6 +146,7 @@ function buildMarkup() {
           <button type="button" class="tab is-active" data-type="all">Tất cả</button>
           <button type="button" class="tab" data-type="web">Web</button>
           <button type="button" class="tab" data-type="seo">SEO</button>
+          <button type="button" class="tab" data-type="tick">Tích xanh</button>
         </div>
       </div>
 
@@ -388,7 +394,7 @@ function applyFilters(root, state) {
 
         if (kw) {
             const haystack = stripDiacritics(
-                `${c.contractNumber || ""} ${c.partyA?.companyName || ""} ${c.partyA?.representativeName || ""}`
+                `${c.contractNumber || ""} ${c.partyA?.companyName || ""} ${c.partyA?.representativeName || ""} ${c.content?.fanpageName || ""}`
             );
             if (!haystack.includes(kw)) return false;
         }
@@ -432,6 +438,7 @@ function renderStats(root, all) {
     root.querySelector("#statCompletedHist").textContent = all.filter((c) => c.status === "completed").length;
     root.querySelector("#statWebHist").textContent = all.filter((c) => c.type === "web").length;
     root.querySelector("#statSeoHist").textContent = all.filter((c) => c.type === "seo").length;
+    root.querySelector("#statTickHist").textContent = all.filter((c) => c.type === "tick").length;
 }
 
 function renderTable(root, state) {
@@ -584,14 +591,18 @@ async function handleDownload(btn, contract, kind) {
 
         let blob;
         if (kind === "docx") {
-            blob = contract.type === "seo"
-                ? await generateSeoContractDocx(contract)
-                : await generateContractDocx(contract);
+            blob = contract.type === "tick"
+                ? await generateTickContractDocx(contract)
+                : contract.type === "seo"
+                    ? await generateSeoContractDocx(contract)
+                    : await generateContractDocx(contract);
             downloadBlob(blob, `${filenameSafe}.docx`);
         } else {
-            blob = contract.type === "seo"
-                ? await generateSeoContractPdf(contract)
-                : await generateContractPdf(contract);
+            blob = contract.type === "tick"
+                ? await generateTickContractPdf(contract)
+                : contract.type === "seo"
+                    ? await generateSeoContractPdf(contract)
+                    : await generateContractPdf(contract);
             downloadBlob(blob, `${filenameSafe}.pdf`);
         }
 
