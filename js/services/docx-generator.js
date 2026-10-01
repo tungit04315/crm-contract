@@ -16,9 +16,11 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType,
+  Footer, PageNumber, Tab,
 } from "https://esm.sh/docx@8.5.0";
 import { toVietnameseLongDate, toShortDate, addDays } from "../utils/date-utils.js";
 import { soTienBangChu } from "../utils/number-to-words.js";
+import { buildTickContractBlocks, tickSignatureNames } from "./tick-contract-model.js";
 
 const FONT = "Times New Roman";
 
@@ -577,6 +579,91 @@ export async function generateSeoContractDocx(data) {
   return Packer.toBlob(doc);
 }
 
+
+// ==========================================================================
+// generateTickContractDocx — Hợp đồng dịch vụ tư vấn đăng ký TÍCH XANH
+// FACEBOOK (Meta). Nội dung lấy từ tick-contract-model.js (nguồn duy nhất,
+// dùng chung với bản PDF) — file này chỉ "vẽ" các block ra Word.
+// ==========================================================================
+function tickRuns(t, base = {}) {
+  const parts = Array.isArray(t) ? t : [{ t }];
+  return parts.map((x) => run(x.t, { bold: x.b ?? base.bold, italics: x.i ?? base.italic, ...(base.size ? { size: base.size } : {}) }));
+}
+
+function tickBlockToDocx(block, data) {
+  switch (block.k) {
+    case "c":
+      return p(tickRuns(block.t, { bold: block.b, italic: block.i, size: block.sz }), { align: AlignmentType.CENTER, spacingAfter: block.after ?? 120 });
+    case "h":
+      return heading(block.t);
+    case "s":
+      return new Paragraph({ spacing: { before: 140, after: 80 }, keepNext: true, children: [run(block.t, { bold: true })] });
+    case "p":
+      return p(tickRuns(block.t, { bold: block.b, italic: block.i }), { align: AlignmentType.JUSTIFIED, spacingAfter: 100 });
+    case "li": {
+      const marker = block.l === 2 ? "+" : "-";
+      const left = block.l === 2 ? 1080 : 720;
+      return new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 80 },
+        indent: { left, hanging: 280 },
+        children: [new TextRun({ children: [marker, new Tab()], size: 24, font: FONT }), ...tickRuns(block.t)],
+        tabStops: [{ type: "left", position: left }],
+      });
+    }
+    case "sig": {
+      const names = tickSignatureNames(data);
+      const cell = (title, name) => new TableCell({
+        width: { size: 4677, type: WidthType.DXA },
+        borders: noBorders(),
+        children: [
+          p(title, { bold: true, align: AlignmentType.CENTER, spacingAfter: 20 }),
+          p("(Ký, ghi rõ họ tên, đóng dấu)", { italic: true, size: 20, align: AlignmentType.CENTER, spacingAfter: 900 }),
+          p(name, { bold: true, align: AlignmentType.CENTER }),
+        ],
+      });
+      return [
+        new Paragraph({ spacing: { before: 240 }, keepNext: true, children: [] }),
+        new Table({
+          width: { size: 9354, type: WidthType.DXA },
+          borders: noBorders(),
+          rows: [new TableRow({ cantSplit: true, children: [cell("ĐẠI DIỆN BÊN A", names.a), cell("ĐẠI DIỆN BÊN B", names.b)] })],
+        }),
+      ];
+    }
+    default:
+      return p("");
+  }
+}
+
+/**
+ * @param {object} data - dữ liệu từ contract-tick-view.js (hoặc đã lưu trong Firestore)
+ * @returns {Promise<Blob>} file .docx
+ */
+export async function generateTickContractDocx(data) {
+  const children = buildTickContractBlocks(data).flatMap((b) => tickBlockToDocx(b, data));
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1417, right: 1134 } },
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ children: ["Trang ", PageNumber.CURRENT, " / ", PageNumber.TOTAL_PAGES], size: 20, font: FONT })],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  });
+  return Packer.toBlob(doc);
+}
 
 function noBorders() {
   const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
